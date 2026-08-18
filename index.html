@@ -609,6 +609,8 @@ async function clearResults(){
     renderResultsForm();
   } else { msg.style.color='#dc2626';msg.textContent='Error clearing results.'; }
 }
+
+function renderLockStatus(){
   const wn=document.getElementById('lock-week')?.value;
   const el=document.getElementById('lock-status'); if(!el)return;
   if(!wn||!state.weeks[wn]){el.innerHTML='';return}
