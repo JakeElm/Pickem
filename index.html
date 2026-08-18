@@ -831,7 +831,7 @@ function renderLeaderboard(){
   const completedWeeks=Object.keys(state.weeks).filter(w=>Object.keys(state.results[w]||{}).length>0);
   const badge=document.getElementById('lb-week-badge');
   if(badge)badge.textContent=completedWeeks.length?`${completedWeeks.length} week${completedWeeks.length>1?'s':''} scored`:'No results yet';
-  const players=[...new Set([...state.players,...Object.values(state.picks).flatMap(w=>Object.keys(w))])];
+  const players=state.players; // only show current registered players
   const scores=players.map(p=>{
     let total=0,possible=0;
     completedWeeks.forEach(w=>{
@@ -866,7 +866,7 @@ function renderWeeklyBreakdown(){
   const games=state.weeks[wn].games||[];
   const res=state.results[wn]||{};
   const weekPicks=state.picks[wn]||{};
-  const players=Object.keys(weekPicks).sort();
+  const players=state.players.filter(p=>weekPicks[p]).sort();
   if(!players.length){bd.innerHTML='<p class="empty">No picks this week.</p>';return}
   let html='<div style="overflow-x:auto"><table class="breakdown-table">';
   html+='<thead><tr><th style="text-align:left;padding-left:0">Player</th>';
@@ -931,6 +931,7 @@ async function addPlayer(){
 }
 async function removePlayer(n){
   await db('players','DELETE',null,`?name=eq.${encodeURIComponent(n)}`);
+  await db('picks','DELETE',null,`?player_name=eq.${encodeURIComponent(n)}`);
   await loadAll();
   renderPlayersList();
 }
