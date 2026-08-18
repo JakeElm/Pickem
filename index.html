@@ -117,6 +117,13 @@ select option{background:var(--bg-card2)}
 .game-input-card{background:var(--bg-card2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px}
 .game-input-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .game-num{font-size:13px;font-weight:700;color:var(--blue-light);font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.5px}
+/* Row-style pick buttons (matches Enter Results layout) */
+.pick-btn-row{padding:7px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;background:var(--bg-card2);color:var(--text-muted);font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.5px;transition:background .1s,color .1s,border-color .1s}
+.pick-btn-row:hover:not(:disabled){background:var(--blue-dark);color:#fff;border-color:var(--blue-dark)}
+.pick-btn-row.selected{background:var(--blue);color:#fff;border-color:var(--blue)}
+.pick-btn-row.correct{background:#dcfce7;color:#15803d;border-color:#86efac}
+.pick-btn-row.wrong{background:#fee2e2;color:#dc2626;border-color:#fca5a5}
+.pick-btn-row:disabled{opacity:.5;cursor:default}
 .game-input-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .game-input-grid-bottom{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
 .pw-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 1rem;gap:1rem}
@@ -165,7 +172,7 @@ select option{background:var(--bg-card2)}
           <div id="pick-login-area">
             <div class="row3" style="margin-bottom:.75rem">
               <div><label>Your name</label><select id="picker-name" onchange="resetPinState()"><option value="">— select your name —</option></select></div>
-              <div><label>Your PIN</label><input type="password" id="picker-pin" maxlength="4" placeholder="••••" inputmode="numeric" oninput="resetPinState()"></div>
+              <div><label>Your PIN</label><input type="password" id="picker-pin" maxlength="4" placeholder="••••" inputmode="numeric" onkeydown="if(event.key==='Enter')verifyPin()"></div>
               <div style="display:flex;align-items:flex-end"><button class="btn-primary" style="width:100%" onclick="verifyPin()">Verify</button></div>
             </div>
             <div id="pin-err" class="err" style="display:none"></div>
@@ -369,9 +376,10 @@ async function loadAll(){
 // PIN verification
 function resetPinState(){
   document.getElementById('pin-err').style.display='none';
-  // If player changed, clear verified session
   const name = document.getElementById('picker-name').value;
-  if(name !== verifiedPlayer) signOut();
+  if(verifiedPlayer && name !== verifiedPlayer){
+    signOut();
+  }
 }
 
 async function verifyPin(){
@@ -405,13 +413,13 @@ function showPickContent(){
   if(sel) sel.value = verifiedPlayer;
 }
 
-function signOut(){
+function signOut(clearPin=true){
   verifiedPlayer = '';
   sessionStorage.removeItem('pickem_player');
   pendingPicks = {};
   lastPickContext = '';
   document.getElementById('pick-content').style.display='none';
-  document.getElementById('picker-pin').value='';
+  if(clearPin) document.getElementById('picker-pin').value='';
   document.getElementById('pin-err').style.display='none';
   const err=document.getElementById('picks-err');
   const suc=document.getElementById('picks-success');
@@ -649,21 +657,19 @@ function renderPicksGames(){
     const pick=merged[i]||'';
     const result=res[i]||'';
     const{awayLabel,homeLabel}=getSpreadLabels(g);
+    const meta=[g.day,g.time,g.tv].filter(Boolean).join(' · ');
     function btnClass(team){
-      let c='pick-btn';
+      let c='pick-btn-row';
       if(pick===team)c+=' selected';
       if(result&&pick===team){c+=pick===result?' correct':' wrong'}
       return c;
     }
-    return`<div class="game-card">
-      ${g.day?`<div class="game-card-day">${g.day}</div>`:''}
-      <div class="game-card-body">
-        <div class="team-block away"><div class="team-name-big">${g.away}</div></div>
-        <div class="at-divider"><span class="at-text">AT</span></div>
-        <div class="team-block"><div class="team-name-big">${g.home}</div></div>
-        ${g.time||g.tv?`<div class="game-info-block">${g.time?`<div class="game-time-big">${g.time}</div>`:''}${g.tv?`<div class="game-tv-line">${g.tv}</div>`:''}</div>`:''}
+    return`<div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;font-size:14px;font-weight:600;color:var(--text)">
+        ${g.away} @ ${g.home}
+        ${meta?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px;text-transform:uppercase;letter-spacing:.3px">${meta}</div>`:''}
       </div>
-      <div class="game-pick-row">
+      <div style="display:flex;gap:6px;flex-shrink:0">
         <button class="${btnClass(g.away)}" onclick="selectPick(${i},'${g.away.replace(/'/g,"\\'")}',this)" ${isLocked?'disabled':''}>${awayLabel}</button>
         <button class="${btnClass(g.home)}" onclick="selectPick(${i},'${g.home.replace(/'/g,"\\'")}',this)" ${isLocked?'disabled':''}>${homeLabel}</button>
       </div>
@@ -685,7 +691,7 @@ function selectPick(idx,team,btn){
   const wn=document.getElementById('picks-week').value;
   if(!pendingPicks[wn])pendingPicks[wn]={};
   pendingPicks[wn][idx]=team;
-  btn.closest('.game-pick-row').querySelectorAll('.pick-btn').forEach(b=>b.classList.remove('selected'));
+  btn.closest('div').querySelectorAll('.pick-btn-row').forEach(b=>b.classList.remove('selected'));
   btn.classList.add('selected');
 }
 
@@ -745,9 +751,8 @@ function renderWeeklyBreakdown(){
   if(!wn||!state.weeks[wn]){bd.innerHTML='<p class="empty">No data.</p>';return}
   const locked=state.weeks[wn].locked||false;
   const scored=Object.keys(state.results[wn]||{}).length>0;
-  // Hide breakdown entirely until admin has locked the week
   if(!locked&&!scored){
-    bd.innerHTML='<p class="empty" style="text-align:center;padding:1.5rem 0">📋 Breakdown will be visible once the admin locks picks for this week.</p>';
+    bd.innerHTML='<p class="empty" style="text-align:center;padding:1.5rem 0">📋 Breakdown will be visible once submissions are stopped.</p>';
     return;
   }
   const games=state.weeks[wn].games||[];
@@ -757,38 +762,36 @@ function renderWeeklyBreakdown(){
   if(!players.length){bd.innerHTML='<p class="empty">No picks this week.</p>';return}
   let html='<div style="overflow-x:auto"><table class="breakdown-table">';
   html+='<thead><tr><th style="text-align:left;padding-left:0">Player</th>';
-  if(scored){
-    games.forEach((g,i)=>{
-      html+=`<th>${g.away}<br><span style="color:#aaa;font-size:9px">@</span><br>${g.home}${res[i]?'<br><span style="color:#16a34a">'+res[i]+' ✓</span>':''}</th>`;
-    });
-    html+='<th>Score</th>';
-  } else {
-    html+='<th>Status</th>';
-  }
+  games.forEach((g,i)=>{
+    const winner=res[i]||'';
+    const awayStyle=scored&&winner===g.away?'color:#16a34a;font-weight:700':'';
+    const homeStyle=scored&&winner===g.home?'color:#16a34a;font-weight:700':'';
+    html+=`<th><span style="${awayStyle}">${g.away}</span><br><span style="color:#aaa;font-size:9px">@</span><br><span style="${homeStyle}">${g.home}</span></th>`;
+  });
+  if(scored) html+='<th>Score</th>';
   html+='</tr></thead><tbody>';
   players.forEach(p=>{
     const picks=weekPicks[p]||{};
-    const pickCount=Object.keys(picks).length;
     html+='<tr>';
     html+=`<td style="text-align:left;padding-left:0;font-weight:600;white-space:nowrap;color:var(--text)">${p.charAt(0).toUpperCase()+p.slice(1)}</td>`;
+    games.forEach((g,i)=>{
+      const pick=picks[i]||'';
+      const result=res[i]||'';
+      let cls='';
+      if(scored&&result){
+        if(!pick) cls='cell-none';
+        else if(pick===result) cls='cell-correct';
+        else cls='cell-wrong';
+      }
+      if(scored&&result){
+        html+=`<td class="${cls}">${pick||'—'}</td>`;
+      } else {
+        html+=`<td style="color:${pick?'var(--text)':'var(--text-muted)'}">${pick||'—'}</td>`;
+      }
+    });
     if(scored){
-      games.forEach((g,i)=>{
-        const pick=picks[i]||'';
-        const result=res[i]||'';
-        let cls='',icon='';
-        if(result){
-          if(!pick){cls='cell-none';icon='—';}
-          else if(pick===result){cls='cell-correct';icon='✓';}
-          else{cls='cell-wrong';icon='✗';}
-        }
-        const label=pick||(scored?'—':'');
-        html+=`<td class="${cls}">${label?label+(icon&&pick?' <span style="font-size:10px">'+icon+'</span>':''):''}</td>`;
-      });
       const total=Object.keys(res).filter(i=>picks[i]===res[i]).length;
       html+=`<td style="font-weight:700;color:${total>=3?'#16a34a':'#dc2626'}">${total}/${Object.keys(res).length}</td>`;
-    } else {
-      // Locked but no results yet — show picked/pending only, no individual picks
-      html+=`<td><span class="badge ${pickCount>=games.length?'badge-success':'badge-neutral'}">${pickCount>=games.length?'Picked':'Pending'}</span></td>`;
     }
     html+='</tr>';
   });
