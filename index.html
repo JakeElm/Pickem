@@ -259,6 +259,7 @@ select option{background:var(--bg-card2)}
         <div id="results-form"></div>
         <div style="margin-top:1rem;display:flex;gap:8px;align-items:center">
           <button class="btn-primary" onclick="saveResults()">Save results</button>
+          <button class="btn-danger" style="margin-left:4px" onclick="clearResults()">Clear results</button>
           <span id="results-msg" style="font-size:13px;color:var(--green)"></span>
         </div>
       </div>
@@ -595,7 +596,19 @@ async function saveResults(){
   } else { msg.style.color='#dc2626';msg.textContent='Error saving.'; }
 }
 
-function renderLockStatus(){
+async function clearResults(){
+  const wn=document.getElementById('results-week').value; if(!wn)return;
+  const msg=document.getElementById('results-msg');
+  if(!confirm(`Clear all results for ${state.weeks[wn]?.label||'Week '+wn}? This cannot be undone.`))return;
+  msg.textContent='Clearing...';msg.style.color='#5566aa';
+  const res=await db('results','DELETE',null,`?week_number=eq.${wn}`);
+  if(!res?._error){
+    msg.style.color='#16a34a';msg.textContent='Results cleared!';
+    setTimeout(()=>msg.textContent='',2500);
+    await loadAll();
+    renderResultsForm();
+  } else { msg.style.color='#dc2626';msg.textContent='Error clearing results.'; }
+}
   const wn=document.getElementById('lock-week')?.value;
   const el=document.getElementById('lock-status'); if(!el)return;
   if(!wn||!state.weeks[wn]){el.innerHTML='';return}
