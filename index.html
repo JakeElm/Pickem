@@ -290,13 +290,17 @@ let lastPickContext='';
 let gameCount=0;
 
 async function loadAll(){
-  const [players,weeks,picks,results]=await Promise.all([
+  const [players,weeks,picks,results,settings]=await Promise.all([
     db('players','GET',null,'?select=name,pin&order=name'),
     db('weeks','GET',null,'?select=*&order=week_number'),
     db('picks','GET',null,'?select=*'),
-    db('results','GET',null,'?select=*')
+    db('results','GET',null,'?select=*'),
+    db('settings','GET',null,'?key=eq.active_week&select=value')
   ]);
   const safeArr=v=>Array.isArray(v)?v:[];
+  // Active week
+  const settingsArr=safeArr(settings);
+  state.activeWeek=settingsArr.length?settingsArr[0].value:'';
   state.playerData={};
   safeArr(players).forEach(p=>{state.playerData[p.name]=p.pin;});
   state.players=safeArr(players).map(p=>p.name);
@@ -329,23 +333,28 @@ async function loadAll(){
 }
 
 function getActiveWeek(){
-  return localStorage.getItem('pickem_active_week')||'';
+  return state.activeWeek||'';
 }
 
-function saveActiveWeek(){
+async function saveActiveWeek(){
   const wn=document.getElementById('active-week-select')?.value;
   if(!wn)return;
-  localStorage.setItem('pickem_active_week',wn);
-  // Apply to picks and breakdown dropdowns
-  const pw=document.getElementById('picks-week');
-  const ww=document.getElementById('weekly-week');
-  if(pw)pw.value=wn;
-  if(ww)ww.value=wn;
-  renderPicksGames();
-  renderWeeklyBreakdown();
   const msg=document.getElementById('active-week-msg');
-  msg.textContent='Active week saved!';
-  setTimeout(()=>msg.textContent='',2500);
+  msg.textContent='Saving...';msg.style.color='var(--text-muted)';
+  const res=await db('settings','POST',{key:'active_week',value:wn},'?on_conflict=key');
+  if(!res._error){
+    state.activeWeek=wn;
+    const pw=document.getElementById('picks-week');
+    const ww=document.getElementById('weekly-week');
+    if(pw)pw.value=wn;
+    if(ww)ww.value=wn;
+    renderPicksGames();
+    renderWeeklyBreakdown();
+    msg.textContent='Active week saved!';msg.style.color='var(--green)';
+    setTimeout(()=>msg.textContent='',2500);
+  }else{
+    msg.textContent='Error saving.';msg.style.color='var(--wrong)';
+  }
 }
 
 function populateAllSelects(){
