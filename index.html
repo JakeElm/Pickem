@@ -274,6 +274,7 @@ async function db(table, method='GET', body=null, query=''){
       'Accept':'application/json',
     };
     if(method==='POST') headers['Prefer']='resolution=merge-duplicates,return=representation';
+    if(method==='PATCH') headers['Prefer']='return=representation';
     if(method==='DELETE') headers['Prefer']='return=representation';
     const res=await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`,{method,headers,body:body?JSON.stringify(body):null});
     const text=await res.text();
@@ -300,6 +301,8 @@ async function loadAll(){
   const safeArr=v=>Array.isArray(v)?v:[];
   // Active week
   const settingsArr=safeArr(settings);
+  console.log('Settings from DB:', settings);
+  console.log('Active week:', settingsArr.length?settingsArr[0].value:'none');
   state.activeWeek=settingsArr.length?settingsArr[0].value:'';
   state.playerData={};
   safeArr(players).forEach(p=>{state.playerData[p.name]=p.pin;});
@@ -341,7 +344,14 @@ async function saveActiveWeek(){
   if(!wn)return;
   const msg=document.getElementById('active-week-msg');
   msg.textContent='Saving...';msg.style.color='var(--text-muted)';
-  const res=await db('settings','POST',{key:'active_week',value:wn},'?on_conflict=key');
+
+  // Try update first, then insert if nothing exists
+  let res=await db('settings','PATCH',{value:wn},'?key=eq.active_week');
+  if(res._error||!res.length){
+    res=await db('settings','POST',{key:'active_week',value:wn},'');
+  }
+  console.log('saveActiveWeek result:',res);
+
   if(!res._error){
     state.activeWeek=wn;
     const pw=document.getElementById('picks-week');
@@ -353,7 +363,8 @@ async function saveActiveWeek(){
     msg.textContent='Active week saved!';msg.style.color='var(--green)';
     setTimeout(()=>msg.textContent='',2500);
   }else{
-    msg.textContent='Error saving.';msg.style.color='var(--wrong)';
+    msg.textContent='Error: '+res._msg.substring(0,80);msg.style.color='var(--wrong)';
+    console.error('saveActiveWeek error:',res);
   }
 }
 
@@ -365,7 +376,7 @@ function populateAllSelects(){
   ['picks-week','weekly-week'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
     const cur=el.value;
-    el.innerHTML=wks.length?wks.map(w=>`<option value="${w}">${state.weeks[w].label||'Week '+w}</option>`):'<option value="">No weeks yet</option>';
+    el.innerHTML=wks.length?wks.map(w=>`<option value="${w}">${state.weeks[w].label||'Week '+w}</option>`).join(''):'<option value="">No weeks yet</option>';
     if(activeWk&&wks.includes(activeWk))el.value=activeWk;
     else if(wks.includes(cur))el.value=cur;
     else if(wks.length)el.value=wks[wks.length-1];
@@ -375,7 +386,7 @@ function populateAllSelects(){
   ['results-week','lock-week'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
     const cur=el.value;
-    el.innerHTML=wks.length?wks.map(w=>`<option value="${w}">${state.weeks[w].label||'Week '+w}</option>`):'<option value="">No weeks yet</option>';
+    el.innerHTML=wks.length?wks.map(w=>`<option value="${w}">${state.weeks[w].label||'Week '+w}</option>`).join(''):'<option value="">No weeks yet</option>';
     if(wks.includes(cur))el.value=cur;
     else if(wks.length)el.value=wks[wks.length-1];
   });
@@ -384,7 +395,7 @@ function populateAllSelects(){
   const activeSel=document.getElementById('active-week-select');
   if(activeSel){
     const cur=activeSel.value;
-    activeSel.innerHTML=wks.length?wks.map(w=>`<option value="${w}">${state.weeks[w].label||'Week '+w}</option>`):'<option value="">No weeks yet</option>';
+    activeSel.innerHTML=wks.length?wks.map(w=>`<option value="${w}">${state.weeks[w].label||'Week '+w}</option>`).join(''):'<option value="">No weeks yet</option>';
     if(activeWk&&wks.includes(activeWk))activeSel.value=activeWk;
     else if(wks.includes(cur))activeSel.value=cur;
     else if(wks.length)activeSel.value=wks[wks.length-1];
