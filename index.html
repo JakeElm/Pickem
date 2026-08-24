@@ -264,7 +264,14 @@ select option{background:var(--bg-card2)}
         </div>
       </div>
       <div class="card">
-        <div class="card-title">Stop submissions</div>
+        <div class="card-title">Active week</div>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem">Select which week players see by default when they visit the site.</p>
+        <div class="week-selector">
+          <label>Current week</label>
+          <select id="active-week-select" onchange="saveActiveWeek()" style="width:auto;min-width:130px"></select>
+        </div>
+        <span id="active-week-msg" style="font-size:13px;color:var(--green)"></span>
+      </div>
         <div class="week-selector">
           <label>Week</label>
           <select id="lock-week" onchange="renderLockStatus();renderPickStatus()"></select>
@@ -471,8 +478,24 @@ function populateWeekSelects(){
     const el=document.getElementById(id); if(!el)return;
     const cur=el.value;
     el.innerHTML=wks.length?wks.map(w=>`<option value="${w}">${state.weeks[w].label||'Week '+w}</option>`).join(''):'<option value="">No weeks yet</option>';
-    if(wks.includes(cur))el.value=cur; else if(wks.length)el.value=wks[wks.length-1];
+    // Default picks-week and weekly-week to the active week
+    const activeWk=localStorage.getItem('pickem_active_week');
+    if(id==='picks-week'||id==='weekly-week'){
+      if(activeWk&&wks.includes(activeWk)) el.value=activeWk;
+      else if(wks.includes(cur)) el.value=cur;
+      else if(wks.length) el.value=wks[wks.length-1];
+    } else {
+      if(wks.includes(cur))el.value=cur; else if(wks.length)el.value=wks[wks.length-1];
+    }
   });
+  // Populate active week selector in admin
+  const activeSel=document.getElementById('active-week-select');
+  if(activeSel){
+    const activeWk=localStorage.getItem('pickem_active_week');
+    activeSel.innerHTML=wks.length?wks.map(w=>`<option value="${w}">${state.weeks[w].label||'Week '+w}</option>`).join(''):'<option value="">No weeks yet</option>';
+    if(activeWk&&wks.includes(activeWk)) activeSel.value=activeWk;
+    else if(wks.length) activeSel.value=wks[wks.length-1];
+  }
   const editSel=document.getElementById('edit-week-select');
   if(editSel){
     const curEdit=editSel.value;
@@ -483,6 +506,22 @@ function populateWeekSelects(){
   renderResultsForm();
   renderLockStatus();
   renderPickStatus();
+}
+
+function saveActiveWeek(){
+  const wn=document.getElementById('active-week-select')?.value;
+  if(!wn)return;
+  localStorage.setItem('pickem_active_week',wn);
+  // Update picks and breakdown dropdowns immediately
+  const picksWk=document.getElementById('picks-week');
+  const weeklyWk=document.getElementById('weekly-week');
+  if(picksWk)picksWk.value=wn;
+  if(weeklyWk)weeklyWk.value=wn;
+  renderPicksGames();
+  renderWeeklyBreakdown();
+  const msg=document.getElementById('active-week-msg');
+  msg.textContent='Active week saved!';
+  setTimeout(()=>msg.textContent='',2500);
 }
 
 function populatePlayerSelect(){
