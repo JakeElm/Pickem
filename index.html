@@ -872,7 +872,8 @@ function renderWeeklyBreakdown(){
     const winner=res[i]||'';
     const awayStyle=scored&&winner===g.away?'color:var(--green);font-weight:700':'';
     const homeStyle=scored&&winner===g.home?'color:var(--green);font-weight:700':'';
-    html+=`<th><span style="${awayStyle}">${g.away}</span><br><span style="color:#aaa;font-size:9px">@</span><br><span style="${homeStyle}">${g.home}</span></th>`;
+    const{awayLabel,homeLabel}=getSpreadLabels(g);
+    html+=`<th><span style="${awayStyle}">${awayLabel}</span><br><span style="color:#aaa;font-size:9px">@</span><br><span style="${homeStyle}">${homeLabel}</span></th>`;
   });
   if(scored)html+='<th>Score</th>';
   html+='</tr></thead><tbody>';
