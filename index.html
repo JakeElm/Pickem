@@ -285,7 +285,7 @@ async function db(table, method='GET', body=null, query=''){
 
 let state={players:[],playerData:{},weeks:{},picks:{},results:{}};
 let adminUnlocked=sessionStorage.getItem('pickem_admin')==='1';
-let verifiedPlayer=sessionStorage.getItem('pickem_player')||'';
+let verifiedPlayer=localStorage.getItem('pickem_player')||'';
 let pendingPicks={};
 let lastPickContext='';
 let gameCount=0;
@@ -443,7 +443,7 @@ async function verifyPin(){
   if(!storedPin){err.textContent='No PIN set. Ask the admin.';err.style.display='block';err.style.color='var(--wrong)';return;}
   if(pin!==storedPin){err.textContent='Incorrect PIN. Try again.';err.style.display='block';err.style.color='var(--wrong)';document.getElementById('picker-pin').value='';return;}
   verifiedPlayer=name;
-  sessionStorage.setItem('pickem_player',name);
+  localStorage.setItem('pickem_player',name);
   showPickContent();
   renderPicksGames();
 }
@@ -456,7 +456,7 @@ function showPickContent(){
 
 function signOut(clearPin=true){
   verifiedPlayer='';
-  sessionStorage.removeItem('pickem_player');
+  localStorage.removeItem('pickem_player');
   pendingPicks={};lastPickContext='';
   document.getElementById('pick-content').style.display='none';
   if(clearPin)document.getElementById('picker-pin').value='';
@@ -872,7 +872,8 @@ function renderWeeklyBreakdown(){
     const winner=res[i]||'';
     const awayStyle=scored&&winner===g.away?'color:var(--green);font-weight:700':'';
     const homeStyle=scored&&winner===g.home?'color:var(--green);font-weight:700':'';
-    html+=`<th><span style="${awayStyle}">${g.away}</span><br><span style="color:#aaa;font-size:9px">@</span><br><span style="${homeStyle}">${g.home}</span></th>`;
+    const {awayLabel, homeLabel} = getSpreadLabels(g);
+    html+=`<th><span style="${awayStyle}">${awayLabel}</span><br><span style="color:#aaa;font-size:9px">@</span><br><span style="${homeStyle}">${homeLabel}</span></th>`;
   });
   if(scored)html+='<th>Score</th>';
   html+='</tr></thead><tbody>';
